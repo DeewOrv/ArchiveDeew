@@ -24,6 +24,12 @@ const OIDC_COOKIE_TTL = 10 * 60 * 1000;
 const router: IRouter = Router();
 
 function getOrigin(req: Request): string {
+  // Prefer REPLIT_DOMAINS (always the correct public domain in Replit environment)
+  const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+  if (replitDomain) {
+    return `https://${replitDomain}`;
+  }
+  // Fallback: read from forwarded headers (works when proxy sets them)
   const proto = req.headers["x-forwarded-proto"] || "https";
   const host =
     req.headers["x-forwarded-host"] || req.headers["host"] || "localhost";
