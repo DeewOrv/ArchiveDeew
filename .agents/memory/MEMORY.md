@@ -1,0 +1,2 @@
+- [pb-safe CSS quirk](pb-safe-css.md) — pb-safe is a custom CSS class, never use it inside Tailwind @apply directives
+- [replit-auth-web tsconfig](replit-auth-web-tsconfig.md) — lib needs composite:true + declarationMap + emitDeclarationOnly for leaf artifact references
