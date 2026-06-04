@@ -3,13 +3,20 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Media Progress Tracker API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: Auth
+    description: Browser and mobile authentication endpoints.
+  - name: media
+    description: Media collection operations
+  - name: upload
+    description: Cover image upload operations
+
 paths:
   /healthz:
     get:
@@ -24,7 +31,452 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/user:
+    get:
+      tags: [Auth]
+      operationId: getCurrentAuthUser
+      summary: Get the currently authenticated user
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Auth status resolved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserEnvelope'
+
+  /login:
+    get:
+      tags: [Auth]
+      operationId: beginBrowserLogin
+      summary: Start the browser OIDC login flow
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to the OIDC authorization endpoint.
+
+  /callback:
+    get:
+      tags: [Auth]
+      operationId: handleBrowserLoginCallback
+      summary: Complete the browser OIDC login flow
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: iss
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uri
+      responses:
+        '302':
+          description: Redirect to the returnTo path on success.
+
+  /logout:
+    get:
+      tags: [Auth]
+      operationId: logoutBrowserSession
+      summary: Clear the session and begin OIDC logout
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '302':
+          description: Redirect to the OIDC provider logout URL.
+
+  /mobile-auth/token-exchange:
+    post:
+      tags: [Auth]
+      operationId: exchangeMobileAuthorizationCode
+      summary: Exchange a mobile OIDC code for a session token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileTokenExchangeRequest'
+      responses:
+        '200':
+          description: Session created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileTokenExchangeSuccess'
+        '400':
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Token did not contain usable claims.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Token exchange failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /mobile-auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutMobileSession
+      summary: Delete a mobile session token
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+      responses:
+        '200':
+          description: Logout processed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutSuccess'
+
+  /media:
+    get:
+      operationId: listMedia
+      tags: [media]
+      summary: List all media for the authenticated user
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: my_status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: favorite
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of media
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MediaItem"
+    post:
+      operationId: createMedia
+      tags: [media]
+      summary: Create a new media entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaItem"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Unauthorized
+
+  /media/stats:
+    get:
+      operationId: getMediaStats
+      tags: [media]
+      summary: Get collection statistics for the authenticated user
+      responses:
+        "200":
+          description: Collection stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaStats"
+
+  /media/recent:
+    get:
+      operationId: getRecentMedia
+      tags: [media]
+      summary: Get recently updated media entries
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Recently updated media
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MediaItem"
+
+  /media/favorites:
+    get:
+      operationId: getFavoriteMedia
+      tags: [media]
+      summary: Get all favorited media entries
+      responses:
+        "200":
+          description: Favorite media
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MediaItem"
+
+  /media/continue-reading:
+    get:
+      operationId: getContinueReading
+      tags: [media]
+      summary: Get media with status Reading for quick resume
+      responses:
+        "200":
+          description: Media being read
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MediaItem"
+
+  /media/continue-watching:
+    get:
+      operationId: getContinueWatching
+      tags: [media]
+      summary: Get media with status Watching for quick resume
+      responses:
+        "200":
+          description: Media being watched
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MediaItem"
+
+  /media/export:
+    get:
+      operationId: exportMedia
+      tags: [media]
+      summary: Export all media as JSON
+      responses:
+        "200":
+          description: Full media export
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MediaItem"
+
+  /media/import:
+    post:
+      operationId: importMedia
+      tags: [media]
+      summary: Import media from JSON backup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaImportPayload"
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+
+  /media/{id}:
+    get:
+      operationId: getMedia
+      tags: [media]
+      summary: Get a single media entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Media entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaItem"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateMedia
+      tags: [media]
+      summary: Update a media entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaItem"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteMedia
+      tags: [media]
+      summary: Delete a media entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResult"
+        "404":
+          description: Not found
+
+  /media/{id}/progress:
+    patch:
+      operationId: updateMediaProgress
+      tags: [media]
+      summary: Quickly update progress (+1, +5, +10, -1, or set value)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProgressUpdate"
+      responses:
+        "200":
+          description: Updated progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaItem"
+
+  /media/{id}/favorite:
+    patch:
+      operationId: toggleMediaFavorite
+      tags: [media]
+      summary: Toggle favorite status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaItem"
+
+  /upload/cover:
+    post:
+      operationId: uploadCover
+      tags: [upload]
+      summary: Get a signed upload URL for cover image (Supabase)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoverUploadRequest"
+      responses:
+        "200":
+          description: Signed upload info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoverUploadResponse"
+
 components:
+  parameters:
+    AuthorizationSessionHeader:
+      name: Authorization
+      in: header
+      required: false
+      description: Opaque session token — `Bearer <sid>`.
+      schema:
+        type: string
+    SessionCookie:
+      name: sid
+      in: cookie
+      required: false
+      description: Browser session cookie.
+      schema:
+        type: string
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +486,241 @@ components:
       required:
         - status
 
+    AuthUser:
+      type: object
+      required: [id, email, firstName, lastName, profileImageUrl]
+      properties:
+        id:
+          type: string
+        email:
+          type: [string, 'null']
+          format: email
+        firstName:
+          type: [string, 'null']
+        lastName:
+          type: [string, 'null']
+        profileImageUrl:
+          type: [string, 'null']
+
+    AuthUserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          oneOf:
+            - $ref: '#/components/schemas/AuthUser'
+            - type: 'null'
+
+    MobileTokenExchangeRequest:
+      type: object
+      required: [code, code_verifier, redirect_uri, state]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        code_verifier:
+          type: string
+          minLength: 1
+        redirect_uri:
+          type: string
+          minLength: 1
+          format: uri
+        state:
+          type: string
+          minLength: 1
+        nonce:
+          type: string
+          minLength: 1
+
+    MobileTokenExchangeSuccess:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+
+    LogoutSuccess:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    MediaItem:
+      type: object
+      required: [id, user_id, title, category, created_at, updated_at]
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: string
+        title:
+          type: string
+        alternative_title:
+          type: ["string", "null"]
+        acronym:
+          type: ["string", "null"]
+        cover_url:
+          type: ["string", "null"]
+        category:
+          type: string
+        media_status:
+          type: ["string", "null"]
+        progress:
+          type: ["integer", "null"]
+        my_status:
+          type: ["string", "null"]
+        last_source:
+          type: ["string", "null"]
+        favorite:
+          type: boolean
+        notes:
+          type: ["string", "null"]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    MediaInput:
+      type: object
+      required: [title, category]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        alternative_title:
+          type: string
+        acronym:
+          type: string
+        cover_url:
+          type: string
+        category:
+          type: string
+        media_status:
+          type: string
+        progress:
+          type: integer
+        my_status:
+          type: string
+        last_source:
+          type: string
+        favorite:
+          type: boolean
+        notes:
+          type: string
+
+    MediaUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        alternative_title:
+          type: string
+        acronym:
+          type: string
+        cover_url:
+          type: string
+        category:
+          type: string
+        media_status:
+          type: string
+        progress:
+          type: integer
+        my_status:
+          type: string
+        last_source:
+          type: string
+        favorite:
+          type: boolean
+        notes:
+          type: string
+
+    ProgressUpdate:
+      type: object
+      required: [delta]
+      properties:
+        delta:
+          type: integer
+          description: Change to apply (+1, +5, +10, -1) or absolute value if set=true
+        set:
+          type: boolean
+          description: If true, set progress to delta value directly
+
+    MediaStats:
+      type: object
+      required: [total, reading, watching, completed, dropped, on_hold, favorites]
+      properties:
+        total:
+          type: integer
+        reading:
+          type: integer
+        watching:
+          type: integer
+        completed:
+          type: integer
+        dropped:
+          type: integer
+        on_hold:
+          type: integer
+        favorites:
+          type: integer
+        by_category:
+          type: object
+          additionalProperties:
+            type: integer
+
+    MediaImportPayload:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaInput"
+
+    ImportResult:
+      type: object
+      required: [imported, skipped]
+      properties:
+        imported:
+          type: integer
+        skipped:
+          type: integer
+
+    DeleteResult:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+
+    CoverUploadRequest:
+      type: object
+      required: [category, filename]
+      properties:
+        category:
+          type: string
+        filename:
+          type: string
+
+    CoverUploadResponse:
+      type: object
+      required: [upload_url, public_url]
+      properties:
+        upload_url:
+          type: string
+        public_url:
+          type: string
+        path:
+          type: ["string", "null"]
