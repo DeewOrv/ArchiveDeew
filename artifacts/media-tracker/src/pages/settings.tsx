@@ -22,7 +22,7 @@ export default function Settings() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `media-export-${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `archivedeew-backup-${new Date().toISOString().split('T')[0]}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -43,17 +43,16 @@ export default function Settings() {
       try {
         const content = event.target?.result as string;
         const items = JSON.parse(content);
-        
+
         await importMedia.mutateAsync({ data: { items } });
         toast({ title: "Import successful" });
-        
-        // Invalidate everything
+
         queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetMediaStatsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetRecentMediaQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetContinueReadingQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetContinueWatchingQueryKey() });
-        
+
       } catch (err) {
         toast({ title: "Import failed", description: "Invalid JSON format", variant: "destructive" });
       }
@@ -67,7 +66,7 @@ export default function Settings() {
   return (
     <div className="flex flex-col p-4 pb-20">
       <h1 className="text-2xl font-bold mb-6">Settings</h1>
-      
+
       <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4 mb-8">
         <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center overflow-hidden">
           {user?.profileImageUrl ? (
@@ -77,7 +76,7 @@ export default function Settings() {
           )}
         </div>
         <div>
-          <h2 className="font-semibold">{user?.firstName || "Vault Master"}</h2>
+          <h2 className="font-semibold">{user?.firstName || user?.email?.split("@")[0] || "Archivist"}</h2>
           <p className="text-sm text-muted-foreground">{user?.email || "No email provided"}</p>
         </div>
       </div>
@@ -86,42 +85,55 @@ export default function Settings() {
         <section>
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">Data</h3>
           <div className="bg-card border border-border rounded-xl divide-y divide-border overflow-hidden">
-            <button 
+            <button
               className="w-full flex items-center gap-3 p-4 hover:bg-secondary/50 transition-colors text-left"
               onClick={handleExport}
               disabled={isExporting}
             >
               <Download className="w-5 h-5 text-primary" />
               <div>
-                <div className="font-medium">Export Data</div>
-                <div className="text-xs text-muted-foreground">Download your library as JSON</div>
+                <div className="font-medium">Export Backup</div>
+                <div className="text-xs text-muted-foreground">Download your archive as JSON</div>
               </div>
             </button>
-            <button 
+            <button
               className="w-full flex items-center gap-3 p-4 hover:bg-secondary/50 transition-colors text-left"
               onClick={() => fileInputRef.current?.click()}
               disabled={importMedia.isPending}
             >
               <Upload className="w-5 h-5 text-primary" />
               <div>
-                <div className="font-medium">Import Data</div>
+                <div className="font-medium">Import Backup</div>
                 <div className="text-xs text-muted-foreground">Restore from JSON backup</div>
               </div>
             </button>
-            <input 
-              type="file" 
-              accept=".json" 
-              className="hidden" 
-              ref={fileInputRef} 
-              onChange={handleImport} 
+            <input
+              type="file"
+              accept=".json"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleImport}
             />
+          </div>
+        </section>
+
+        <section>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">About</h3>
+          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0">
+              <img src="/logo.png" alt="ArchiveDeew" className="w-full h-full object-cover" />
+            </div>
+            <div>
+              <div className="font-medium">ArchiveDeew</div>
+              <div className="text-xs text-muted-foreground">Personal media progress tracker</div>
+            </div>
           </div>
         </section>
 
         <section>
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">Account</h3>
           <div className="bg-card border border-border rounded-xl overflow-hidden">
-            <button 
+            <button
               className="w-full flex items-center gap-3 p-4 hover:bg-destructive/10 transition-colors text-left text-destructive"
               onClick={logout}
             >

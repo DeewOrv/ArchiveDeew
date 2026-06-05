@@ -50,11 +50,16 @@ export default function Home() {
     <div className="flex flex-col gap-6 p-4 pb-6">
       {/* Header */}
       <div className="flex items-center justify-between pt-2">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Media Vault</h1>
-          <p className="text-sm text-muted-foreground">
-            {user?.firstName || user?.email || "Your Collection"}
-          </p>
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg overflow-hidden ring-1 ring-white/10 shrink-0">
+            <img src="/logo.png" alt="ArchiveDeew" className="w-full h-full object-cover" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold tracking-tight leading-none">ArchiveDeew</h1>
+            <p className="text-xs text-muted-foreground leading-none mt-0.5">
+              {user?.firstName || user?.email?.split("@")[0] || "Your Archive"}
+            </p>
+          </div>
         </div>
         <Link
           href="/search"
