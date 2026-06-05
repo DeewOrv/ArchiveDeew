@@ -8,7 +8,28 @@ export const MEDIA_STATUSES = ["Upcoming", "Ongoing", "Hiatus", "Delayed", "Comp
 
 export const MY_STATUSES = ["Not Started", "Reading", "Watching", "Completed", "Dropped", "On Hold"];
 
-export const SOURCES = ["Shinigami", "MG", "Komiku", "Donghive", "NovelBin", "SakuraNovel", "WebNovel", "YouTube", "Netflix", "Other"];
+export const SOURCES = [
+  "Shinigami", "MG", "Komiku", "SoftKomik", "Siikomik", "Luvyaa",
+  "Donghive", "Bstation", "WeTV", "YouTube",
+  "NovelBin", "SakuraNovel", "WebNovel",
+  "Netflix", "Other",
+];
+
+export const SOURCE_URLS: Record<string, string> = {
+  Shinigami:   "https://shinigami.to/",
+  MG:          "https://web1.mgkomik.cc/",
+  Komiku:      "https://komiku.org/",
+  SoftKomik:   "https://softkomik.co/",
+  Siikomik:    "https://siikomik.net/",
+  Luvyaa:      "https://v4.luvyaa.co/",
+  Donghive:    "https://s13.nontonanimeid.boats/",
+  Bstation:    "https://www.bilibili.tv/id/",
+  WeTV:        "https://m.youtube.com/@WeTVIndonesia",
+  YouTube:     "https://youtube.com/@yuewenanimationindonesia-yai",
+  NovelBin:    "https://novelbin.com/",
+  SakuraNovel: "https://sakuranovel.id/",
+  WebNovel:    "https://m.webnovel.com/id",
+};
 
 export function getCategoryGradient(category: string): string {
   switch (category) {

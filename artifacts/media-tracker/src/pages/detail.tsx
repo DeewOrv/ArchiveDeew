@@ -3,10 +3,11 @@ import { useGetMedia, getGetMediaQueryKey, useUpdateMediaProgress, useToggleMedi
 import { CoverImage } from "@/components/cover-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Heart, Edit, Trash2, ChevronLeft, Loader2, Link as LinkIcon, BookOpen, Clock } from "lucide-react";
+import { Heart, Edit, Trash2, ChevronLeft, Loader2, ExternalLink, BookOpen, Clock } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { SOURCE_URLS } from "@/lib/constants";
 
 export default function Detail() {
   const [, params] = useRoute("/media/:id");
@@ -140,12 +141,22 @@ export default function Detail() {
             <span className="text-xs text-muted-foreground uppercase tracking-wider block mb-1">Release Status</span>
             <span className="font-medium">{media.media_status || "Ongoing"}</span>
           </div>
-          <div className="bg-secondary/50 rounded-xl p-3 col-span-2 flex items-center justify-between">
+          <div className="bg-secondary/50 rounded-xl p-3 col-span-2 flex items-center justify-between gap-3">
             <div>
               <span className="text-xs text-muted-foreground uppercase tracking-wider block mb-1">Source</span>
               <span className="font-medium">{media.last_source || "Unknown"}</span>
             </div>
-            <LinkIcon className="w-4 h-4 text-muted-foreground opacity-50" />
+            {media.last_source && SOURCE_URLS[media.last_source] && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="shrink-0 gap-1.5 text-primary border border-primary/20 bg-primary/10 hover:bg-primary/20"
+                onClick={() => window.open(SOURCE_URLS[media.last_source!]!, "_blank", "noopener,noreferrer")}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Open
+              </Button>
+            )}
           </div>
         </div>
 
