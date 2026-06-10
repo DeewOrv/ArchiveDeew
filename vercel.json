@@ -1,8 +1,13 @@
 {
   "installCommand": "pnpm install",
   "buildCommand": "pnpm --filter @workspace/media-tracker run build",
-  "outputDirectory": "artifacts/media-tracker/dist/public",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "outputDirectory": "artifacts/media-tracker/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
   "env": {
     "BASE_PATH": "/"
   }
