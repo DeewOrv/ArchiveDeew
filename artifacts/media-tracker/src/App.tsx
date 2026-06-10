@@ -2,14 +2,13 @@ import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useAuth } from "@workspace/replit-auth-web";
+import { SupabaseAuthProvider, useAuth } from "@/lib/auth";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 
-// We will create these pages
 import Home from "@/pages/home";
 import Library from "@/pages/library";
 import AddMedia from "@/pages/add-media";
@@ -76,12 +75,14 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
+      <SupabaseAuthProvider>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </SupabaseAuthProvider>
     </QueryClientProvider>
   );
 }

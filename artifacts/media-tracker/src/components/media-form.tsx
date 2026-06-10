@@ -1,12 +1,12 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import type { MediaInput } from "@workspace/api-client-react";
-import { useCreateMedia, useUpdateMedia, useUploadCover, getGetMediaQueryKey, getListMediaQueryKey, getGetRecentMediaQueryKey, getGetContinueReadingQueryKey, getGetContinueWatchingQueryKey, getGetMediaStatsQueryKey } from "@workspace/api-client-react";
+import * as db from "@/lib/db";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { CATEGORIES, MEDIA_STATUSES, MY_STATUSES, SOURCES, generateAcronym } from "@/lib/constants";
+import { useState, useRef } from "react";
 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { UploadCloud, Loader2 } from "lucide-react";
-import { useRef, useState } from "react";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -41,10 +40,7 @@ export function MediaForm({ initialData }: MediaFormProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
-  
-  const createMutation = useCreateMedia();
-  const updateMutation = useUpdateMedia();
-  const uploadMutation = useUploadCover();
+  const [isPending, setIsPending] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -65,31 +61,17 @@ export function MediaForm({ initialData }: MediaFormProps) {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     try {
       setIsUploading(true);
       const category = form.getValues("category") || "Other";
-      const result = await uploadMutation.mutateAsync({
-        data: { category, filename: file.name }
-      });
-
-      await fetch(result.upload_url, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type,
-        },
-      });
-
-      form.setValue("cover_url", result.public_url);
+      const publicUrl = await db.uploadCover(file, category);
+      form.setValue("cover_url", publicUrl);
       toast({ title: "Cover uploaded successfully" });
-    } catch (err) {
+    } catch {
       toast({ title: "Failed to upload cover", variant: "destructive" });
     } finally {
       setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -100,35 +82,29 @@ export function MediaForm({ initialData }: MediaFormProps) {
       }
 
       const cleanData: any = { ...values };
-      Object.keys(cleanData).forEach(key => {
-        if (cleanData[key] === "") {
-          cleanData[key] = undefined;
-        }
+      Object.keys(cleanData).forEach((key) => {
+        if (cleanData[key] === "") cleanData[key] = undefined;
       });
 
       let id = initialData?.id;
+      setIsPending(true);
 
       if (initialData) {
-        await updateMutation.mutateAsync({ id: initialData.id, data: cleanData });
+        await db.updateMedia(initialData.id, cleanData);
         toast({ title: "Media updated" });
       } else {
-        const result = await createMutation.mutateAsync({ data: cleanData as MediaInput });
+        const result = await db.createMedia(cleanData);
         id = result.id;
         toast({ title: "Media created" });
       }
 
-      if (initialData) {
-        queryClient.invalidateQueries({ queryKey: getGetMediaQueryKey(initialData.id) });
-      }
-      queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getGetRecentMediaQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getGetContinueReadingQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getGetContinueWatchingQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getGetMediaStatsQueryKey() });
-
+      queryClient.invalidateQueries({ queryKey: ["media"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
       setLocation(`/media/${id}`);
-    } catch (error) {
+    } catch {
       toast({ title: "Error saving media", variant: "destructive" });
+    } finally {
+      setIsPending(false);
     }
   };
 
@@ -177,7 +153,7 @@ export function MediaForm({ initialData }: MediaFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {CATEGORIES.map(cat => (
+                    {CATEGORIES.map((cat) => (
                       <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                     ))}
                   </SelectContent>
@@ -216,7 +192,7 @@ export function MediaForm({ initialData }: MediaFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {MY_STATUSES.map(stat => (
+                    {MY_STATUSES.map((stat) => (
                       <SelectItem key={stat} value={stat}>{stat}</SelectItem>
                     ))}
                   </SelectContent>
@@ -255,7 +231,7 @@ export function MediaForm({ initialData }: MediaFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {MEDIA_STATUSES.map(stat => (
+                    {MEDIA_STATUSES.map((stat) => (
                       <SelectItem key={stat} value={stat}>{stat}</SelectItem>
                     ))}
                   </SelectContent>
@@ -278,7 +254,7 @@ export function MediaForm({ initialData }: MediaFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {SOURCES.map(src => (
+                    {SOURCES.map((src) => (
                       <SelectItem key={src} value={src}>{src}</SelectItem>
                     ))}
                   </SelectContent>
@@ -299,22 +275,26 @@ export function MediaForm({ initialData }: MediaFormProps) {
                 <FormControl>
                   <Input placeholder="https://..." {...field} className="flex-1" />
                 </FormControl>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
-                  ref={fileInputRef} 
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  ref={fileInputRef}
                   onChange={handleFileUpload}
                 />
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   size="icon"
                   className="shrink-0"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
                 >
-                  {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+                  {isUploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <UploadCloud className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
               <FormMessage />
@@ -336,12 +316,12 @@ export function MediaForm({ initialData }: MediaFormProps) {
           )}
         />
 
-        <Button 
-          type="submit" 
+        <Button
+          type="submit"
           className="w-full h-12 text-base font-semibold"
-          disabled={createMutation.isPending || updateMutation.isPending || isUploading}
+          disabled={isPending || isUploading}
         >
-          {(createMutation.isPending || updateMutation.isPending) ? "Saving..." : "Save Media"}
+          {isPending ? "Saving..." : "Save Media"}
         </Button>
       </form>
     </Form>

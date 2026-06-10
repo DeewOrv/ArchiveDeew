@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useListMedia } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
+import * as db from "@/lib/db";
 import { MediaCard } from "@/components/media-card";
 import { Input } from "@/components/ui/input";
 import { Search as SearchIcon, Loader2 } from "lucide-react";
@@ -9,10 +10,11 @@ export default function Search() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
 
-  const { data: media, isLoading } = useListMedia(
-    { search: debouncedSearch },
-    { query: { enabled: debouncedSearch.length > 0, queryKey: ["listMedia", { search: debouncedSearch }] } }
-  );
+  const { data: media, isLoading } = useQuery({
+    queryKey: ["media", "search", debouncedSearch],
+    queryFn: () => db.listMedia({ search: debouncedSearch }),
+    enabled: debouncedSearch.length > 0,
+  });
 
   return (
     <div className="flex flex-col p-4 h-full">
@@ -20,12 +22,12 @@ export default function Search() {
         <h1 className="text-2xl font-bold mb-4">Search</h1>
         <div className="relative">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          <Input 
+          <Input
             autoFocus
-            placeholder="Title or acronym..." 
+            placeholder="Title or acronym..."
             className="pl-10 h-12 text-base rounded-xl bg-secondary/30 border-secondary"
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
       </div>
@@ -40,7 +42,7 @@ export default function Search() {
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>
         ) : media && media.length > 0 ? (
-          media.map(item => <MediaCard key={item.id} item={item} />)
+          media.map((item) => <MediaCard key={item.id} item={item} />)
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <p className="text-muted-foreground">No matching media found.</p>

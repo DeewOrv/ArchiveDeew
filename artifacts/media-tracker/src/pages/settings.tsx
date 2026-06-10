@@ -1,36 +1,37 @@
-import { useAuth } from "@workspace/replit-auth-web";
-import { useExportMedia, useImportMedia, getListMediaQueryKey, getGetMediaStatsQueryKey, getGetRecentMediaQueryKey, getGetContinueReadingQueryKey, getGetContinueWatchingQueryKey } from "@workspace/api-client-react";
+import { useState, useRef } from "react";
+import { useAuth } from "@/lib/auth";
+import * as db from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { LogOut, Download, Upload, User as UserIcon } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useRef } from "react";
 
 export default function Settings() {
   const { user, logout } = useAuth();
-  const { refetch: exportMedia, isFetching: isExporting } = useExportMedia({ query: { enabled: false, queryKey: ["exportMedia"] } });
-  const importMedia = useImportMedia();
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const handleExport = async () => {
     try {
-      const result = await exportMedia();
-      if (result.data) {
-        const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `archivedeew-backup-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        toast({ title: "Export successful" });
-      }
-    } catch (err) {
+      setIsExporting(true);
+      const data = await db.exportMedia();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `archivedeew-backup-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Export successful" });
+    } catch {
       toast({ title: "Export failed", variant: "destructive" });
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -41,23 +42,17 @@ export default function Settings() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const content = event.target?.result as string;
-        const items = JSON.parse(content);
-
-        await importMedia.mutateAsync({ data: { items } });
+        const items = JSON.parse(event.target?.result as string);
+        setIsImporting(true);
+        await db.importMedia(items);
+        queryClient.invalidateQueries({ queryKey: ["media"] });
+        queryClient.invalidateQueries({ queryKey: ["stats"] });
         toast({ title: "Import successful" });
-
-        queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetMediaStatsQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetRecentMediaQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetContinueReadingQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetContinueWatchingQueryKey() });
-
-      } catch (err) {
+      } catch {
         toast({ title: "Import failed", description: "Invalid JSON format", variant: "destructive" });
-      }
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
       }
     };
     reader.readAsText(file);
@@ -99,7 +94,7 @@ export default function Settings() {
             <button
               className="w-full flex items-center gap-3 p-4 hover:bg-secondary/50 transition-colors text-left"
               onClick={() => fileInputRef.current?.click()}
-              disabled={importMedia.isPending}
+              disabled={isImporting}
             >
               <Upload className="w-5 h-5 text-primary" />
               <div>

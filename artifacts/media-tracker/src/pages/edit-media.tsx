@@ -1,14 +1,17 @@
 import { useRoute } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import * as db from "@/lib/db";
 import { MediaForm } from "@/components/media-form";
-import { useGetMedia, getGetMediaQueryKey } from "@workspace/api-client-react";
 import { Loader2 } from "lucide-react";
 
 export default function EditMedia() {
   const [, params] = useRoute("/media/:id/edit");
   const id = params?.id ? parseInt(params.id, 10) : 0;
 
-  const { data: media, isLoading } = useGetMedia(id, {
-    query: { enabled: !!id, queryKey: getGetMediaQueryKey(id) }
+  const { data: media, isLoading } = useQuery({
+    queryKey: ["media", id],
+    queryFn: () => db.getMedia(id),
+    enabled: !!id,
   });
 
   if (isLoading) {

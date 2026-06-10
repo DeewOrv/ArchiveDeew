@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useListMedia } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
+import * as db from "@/lib/db";
 import { MediaCard } from "@/components/media-card";
 import { Input } from "@/components/ui/input";
-import { Search, Filter, Loader2 } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -13,46 +14,50 @@ import { Link } from "wouter";
 export default function Library() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
-  
+
   const [category, setCategory] = useState<string | undefined>();
   const [status, setStatus] = useState<string | undefined>();
-  const [sort, setSort] = useState("updated_at:desc");
+  const [sort, setSort] = useState("updated_at");
 
-  const { data: media, isLoading } = useListMedia({
-    search: debouncedSearch || undefined,
-    category,
-    my_status: status,
-    sort
+  const { data: media, isLoading } = useQuery({
+    queryKey: ["media", "list", { search: debouncedSearch, category, my_status: status, sort }],
+    queryFn: () =>
+      db.listMedia({
+        search: debouncedSearch || undefined,
+        category,
+        my_status: status,
+        sort,
+      }),
   });
 
   return (
     <div className="flex flex-col h-full">
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur px-4 py-3 border-b border-border space-y-3">
         <h1 className="text-xl font-bold">Library</h1>
-        
+
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search library..." 
+          <Input
+            placeholder="Search library..."
             className="pl-9 h-10 bg-secondary/50 border-secondary"
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
 
         <ScrollArea className="w-full whitespace-nowrap">
           <div className="flex w-max space-x-2 pb-2">
-            <Badge 
-              variant={!category ? "default" : "secondary"} 
+            <Badge
+              variant={!category ? "default" : "secondary"}
               className="cursor-pointer"
               onClick={() => setCategory(undefined)}
             >
               All
             </Badge>
-            {CATEGORIES.map(cat => (
-              <Badge 
+            {CATEGORIES.map((cat) => (
+              <Badge
                 key={cat}
-                variant={category === cat ? "default" : "secondary"} 
+                variant={category === cat ? "default" : "secondary"}
                 className="cursor-pointer"
                 onClick={() => setCategory(cat)}
               >
@@ -62,20 +67,20 @@ export default function Library() {
           </div>
           <ScrollBar orientation="horizontal" className="h-1.5" />
         </ScrollArea>
-        
+
         <ScrollArea className="w-full whitespace-nowrap">
           <div className="flex w-max space-x-2 pb-2">
-            <Badge 
-              variant={!status ? "default" : "outline"} 
+            <Badge
+              variant={!status ? "default" : "outline"}
               className="cursor-pointer"
               onClick={() => setStatus(undefined)}
             >
               Any Status
             </Badge>
-            {MY_STATUSES.map(stat => (
-              <Badge 
+            {MY_STATUSES.map((stat) => (
+              <Badge
                 key={stat}
-                variant={status === stat ? "default" : "outline"} 
+                variant={status === stat ? "default" : "outline"}
                 className="cursor-pointer"
                 onClick={() => setStatus(stat)}
               >
@@ -93,7 +98,7 @@ export default function Library() {
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>
         ) : media && media.length > 0 ? (
-          media.map(item => <MediaCard key={item.id} item={item} />)
+          media.map((item) => <MediaCard key={item.id} item={item} />)
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mb-4">

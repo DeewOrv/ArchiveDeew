@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
-import { useAuth } from "@workspace/replit-auth-web";
-import { useGetMediaStats, useGetContinueReading, useGetContinueWatching, useGetRecentMedia, getGetMediaStatsQueryKey, getGetContinueReadingQueryKey, getGetContinueWatchingQueryKey, getGetRecentMediaQueryKey, getListMediaQueryKey } from "@workspace/api-client-react";
+import { useAuth } from "@/lib/auth";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import * as db from "@/lib/db";
 import { Link } from "wouter";
-import { useQueryClient } from "@tanstack/react-query";
 import { MediaCard } from "@/components/media-card";
 import { Search, ChevronRight, BookOpen, Tv, CheckCircle2, Heart, Library } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,25 +12,30 @@ export default function Home() {
   const queryClient = useQueryClient();
   const seededRef = useRef(false);
 
-  const { data: stats, isLoading: statsLoading } = useGetMediaStats();
-  const { data: reading, isLoading: readingLoading } = useGetContinueReading();
-  const { data: watching, isLoading: watchingLoading } = useGetContinueWatching();
-  const { data: recent, isLoading: recentLoading } = useGetRecentMedia({ limit: 6 });
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ["stats"],
+    queryFn: db.getStats,
+  });
+  const { data: reading, isLoading: readingLoading } = useQuery({
+    queryKey: ["media", "continue-reading"],
+    queryFn: db.getContinueReading,
+  });
+  const { data: watching, isLoading: watchingLoading } = useQuery({
+    queryKey: ["media", "continue-watching"],
+    queryFn: db.getContinueWatching,
+  });
+  const { data: recent, isLoading: recentLoading } = useQuery({
+    queryKey: ["media", "recent"],
+    queryFn: () => db.getRecentMedia(6),
+  });
 
-  // Auto-seed initial data for first-time users
   useEffect(() => {
     if (!user || seededRef.current) return;
     seededRef.current = true;
-
-    fetch("/api/seed", { method: "POST", credentials: "include" })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.seeded > 0) {
-          queryClient.invalidateQueries({ queryKey: getGetMediaStatsQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetContinueReadingQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetContinueWatchingQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetRecentMediaQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() });
+    db.seedMedia()
+      .then((count) => {
+        if (count > 0) {
+          queryClient.invalidateQueries();
         }
       })
       .catch(() => {});
