@@ -44,10 +44,10 @@ export default function Home() {
   const statCards = stats
     ? [
         { label: "Total", value: stats.total, icon: Library, color: "text-violet-400" },
-        { label: "Reading", value: stats.reading, icon: BookOpen, color: "text-emerald-400" },
-        { label: "Watching", value: stats.watching, icon: Tv, color: "text-blue-400" },
-        { label: "Completed", value: stats.completed, icon: CheckCircle2, color: "text-slate-400" },
-        { label: "Favorites", value: stats.favorites, icon: Heart, color: "text-rose-400" },
+        { label: "Reading", value: stats.byStatus["Reading"] ?? 0, icon: BookOpen, color: "text-emerald-400" },
+        { label: "Watching", value: stats.byStatus["Watching"] ?? 0, icon: Tv, color: "text-blue-400" },
+        { label: "Completed", value: stats.byStatus["Completed"] ?? 0, icon: CheckCircle2, color: "text-slate-400" },
+        { label: "Favorites", value: stats.byStatus["Favorites"] ?? 0, icon: Heart, color: "text-rose-400" },
       ]
     : [];
 

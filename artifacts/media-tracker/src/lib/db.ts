@@ -20,10 +20,8 @@ export interface Media {
 
 export interface Stats {
   total: number;
-  reading: number;
-  watching: number;
-  completed: number;
-  favorites: number;
+  byStatus: Record<string, number>;
+  byCategory: Record<string, number>;
 }
 
 export type MediaInput = Omit<Media, "id" | "user_id" | "created_at" | "updated_at">;
@@ -154,16 +152,25 @@ export async function toggleFavorite(id: number): Promise<Media> {
 export async function getStats(): Promise<Stats> {
   const { data, error } = await supabase
     .from("media")
-    .select("my_status, favorite");
+    .select("my_status, category, favorite");
   if (error) throw error;
   const items = data ?? [];
-  return {
-    total: items.length,
-    reading: items.filter((i) => i.my_status === "Reading").length,
-    watching: items.filter((i) => i.my_status === "Watching").length,
-    completed: items.filter((i) => i.my_status === "Completed").length,
-    favorites: items.filter((i) => i.favorite).length,
-  };
+
+  const byStatus: Record<string, number> = {};
+  const byCategory: Record<string, number> = {};
+
+  for (const item of items) {
+    const s = item.my_status ?? "Unknown";
+    byStatus[s] = (byStatus[s] ?? 0) + 1;
+
+    const c = item.category ?? "Unknown";
+    byCategory[c] = (byCategory[c] ?? 0) + 1;
+  }
+
+  // Count favorites as a virtual status entry
+  byStatus["Favorites"] = items.filter((i) => i.favorite).length;
+
+  return { total: items.length, byStatus, byCategory };
 }
 
 export async function getRecentMedia(limit = 10): Promise<Media[]> {

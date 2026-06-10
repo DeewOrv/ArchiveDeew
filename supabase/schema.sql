@@ -63,30 +63,26 @@ CREATE POLICY "Users delete own media"
 
 -- ============================================================
 -- 3. STORAGE POLICIES (covers bucket)
--- Run this ONLY if the 'covers' bucket already exists.
--- If policies already exist, the DROP statements remove them first.
+-- Run this ONLY after creating the 'covers' bucket in the
+-- Supabase Dashboard → Storage → New Bucket (set Public: on).
 -- ============================================================
 
 DROP POLICY IF EXISTS "Authenticated users can upload covers" ON storage.objects;
 DROP POLICY IF EXISTS "Public can read covers" ON storage.objects;
-DROP POLICY IF EXISTS "Users can update own covers" ON storage.objects;
-DROP POLICY IF EXISTS "Users can delete own covers" ON storage.objects;
 
+-- Any authenticated user may upload (insert) a cover image.
 CREATE POLICY "Authenticated users can upload covers"
   ON storage.objects FOR INSERT
   TO authenticated
   WITH CHECK (bucket_id = 'covers');
 
+-- Anyone (including unauthenticated) may read cover images
+-- so that <img> tags work without extra auth headers.
 CREATE POLICY "Public can read covers"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'covers');
 
-CREATE POLICY "Users can update own covers"
-  ON storage.objects FOR UPDATE
-  TO authenticated
-  USING (bucket_id = 'covers');
-
-CREATE POLICY "Users can delete own covers"
-  ON storage.objects FOR DELETE
-  TO authenticated
-  USING (bucket_id = 'covers');
+-- NOTE: No UPDATE or DELETE storage policies are defined.
+-- Cover uploads use upsert: true on the insert path.
+-- Deleting old covers is handled by uploading a new one
+-- (the app does not expose a delete-cover operation).
